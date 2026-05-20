@@ -143,7 +143,7 @@ export default function App() {
       background: profile.age === val ? '#E1F5EE' : '#fff',
       border: profile.age === val ? '1.5px solid #1D9E75' : '1px solid #D3D1C7',
       color: profile.age === val ? '#085041' : '#1a1a1a', marginRight: 8, marginBottom: 8
-    }}>{val} ans</AgeBtn>
+    }}>{val} ans</button>
   )
 
   const SexBtn = ({ val, label }) => (
@@ -152,7 +152,7 @@ export default function App() {
       background: profile.sex === val ? '#E1F5EE' : '#fff',
       border: profile.sex === val ? '1.5px solid #1D9E75' : '1px solid #D3D1C7',
       color: profile.sex === val ? '#085041' : '#1a1a1a', marginRight: 8
-    }}>{label}</SexBtn>
+    }}>{label}</button>
   )
 
   const Input = ({ id, placeholder, step: st, unit }) => (
