@@ -105,22 +105,16 @@ Rédige :
 Ton chaleureux, professionnel, sans diagnostic médical.`
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    const resp = await fetch('https://kinoa-api-bridge.kinoa-sante.workers.dev/rapport', {
       method: 'POST',
       headers: {
-        'x-api-key': token,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-        'content-type': 'application/json'
+        'Content-Type': 'application/json',
+        'X-API-Token': token
       },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 600,
-        messages: [{ role: 'user', content: prompt }]
-      })
+      body: JSON.stringify({ prompt })
     })
     const data = await resp.json()
-    return data?.content?.[0]?.text || null
+    return data?.text || data?.content?.[0]?.text || null
   } catch {
     return null
   }
