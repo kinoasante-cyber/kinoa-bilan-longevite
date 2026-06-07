@@ -34,8 +34,12 @@ function scoreHigh(val, ref) {
 
 export function calcScores(profile, vals) {
   const { age: a, sex: sx } = profile
-  const tugT  = parseFloat(vals.tugT)   || 0
-  const slsO  = parseFloat(vals.slsO)   || 0
+  const tugT    = parseFloat(vals.tugT)    || 0
+  const slsDroit  = parseFloat(vals.slsDroit)  || 0
+  const slsGauche = parseFloat(vals.slsGauche) || 0
+  const slsO = slsDroit > 0 && slsGauche > 0
+    ? Math.min(slsDroit, slsGauche)
+    : (slsDroit || slsGauche)
   const sts5T = parseFloat(vals.sts5T)  || 0
   const tanT  = parseFloat(vals.tandemT)|| 0
   const tanE  = parseInt(vals.tandemE)  || 0
@@ -96,7 +100,7 @@ export async function generateReport(profile, scores, vals) {
 
 Résultats du Bilan Fonctionnel Longévité Kinoa :
 1. TUG (mobilité fonctionnelle) — ${vals.tugT || '—'} s (référence ≤ ${tugRef.good} s) | Score : ${scores.tugScore}/100
-2. SLS (équilibre statique, yeux ouverts) — ${vals.slsO || '—'} s (référence ≥ ${slsRef.good} s) | Score : ${scores.slsScore}/100
+2. SLS (équilibre statique, yeux ouverts) — Droite : ${vals.slsDroit || '—'} s · Gauche : ${vals.slsGauche || '—'} s (référence ≥ ${slsRef.good} s · côté limitant utilisé pour le score) | Score : ${scores.slsScore}/100
 3. 5×STS (puissance explosive) — ${vals.sts5T || '—'} s (référence ≤ ${sts5Ref.good} s) | Score : ${scores.sts5Score}/100
 4. Tandem Walk (équilibre dynamique) — ${vals.tandemT || '—'} s, ${vals.tandemE || 0} erreur(s) | Score : ${scores.tanScore}/100
 5. 6MWT (endurance aérobie) — ${vals.mwt6D || '—'} m (référence ≥ ${mwt6Ref.good} m) | Score : ${scores.mwt6Score}/100
@@ -121,32 +125,44 @@ Ton chaleureux, professionnel, sans diagnostic médical.`
   }
 }
 
-export async function submitLead(profile, vals, scores, extra) {
+export async function submitLead(profile, vals, scores, extra, ressenti = {}) {
   const url = import.meta.env.VITE_APPS_SCRIPT_URL
   if (!url) return
+  const r = ressenti
   const payload = {
-    source:          import.meta.env.VITE_BILAN_SOURCE || 'bilan_longevite',
-    mode:            extra.mode || 'clinique',
-    prenom:          profile.prenom,
-    email:           profile.email,
-    age:             profile.age,
-    sexe:            profile.sex,
-    tel:             extra.tel || '',
-    consult:         extra.consult || false,
-    programme:       extra.programme || false,
-    newsletter:      extra.newsletter || false,
-    tug_temps:       vals.tugT,
-    sls_ouvert:      vals.slsO,
-    sts5_temps:      vals.sts5T,
-    tandem_temps:    vals.tandemT,
-    tandem_erreurs:  vals.tandemE,
-    mwt6_metres:     vals.mwt6D,
-    score_tug:       scores?.tugScore,
-    score_sls:       scores?.slsScore,
-    score_sts5:      scores?.sts5Score,
-    score_tandem:    scores?.tanScore,
-    score_mwt6:      scores?.mwt6Score,
-    timestamp:       new Date().toISOString(),
+    source:              import.meta.env.VITE_BILAN_SOURCE || 'bilan_longevite',
+    mode:                extra.mode || 'clinique',
+    prenom:              profile.prenom,
+    email:               profile.email,
+    age:                 profile.age,
+    sexe:                profile.sex,
+    tel:                 extra.tel || '',
+    consult:             extra.consult || false,
+    programme:           extra.programme || false,
+    newsletter:          extra.newsletter || false,
+    tug_temps:           vals.tugT,
+    sls_droit:           vals.slsDroit,
+    sls_gauche:          vals.slsGauche,
+    sts5_temps:          vals.sts5T,
+    tandem_temps:        vals.tandemT,
+    tandem_erreurs:      vals.tandemE,
+    mwt6_metres:         vals.mwt6D,
+    score_tug:           scores?.tugScore,
+    score_sls:           scores?.slsScore,
+    score_sts5:          scores?.sts5Score,
+    score_tandem:        scores?.tanScore,
+    score_mwt6:          scores?.mwt6Score,
+    rpe_tug:             r.tug?.rpe || '',
+    commentaire_tug:     r.tug?.commentaire || '',
+    rpe_sls:             r.sls?.rpe || '',
+    commentaire_sls:     r.sls?.commentaire || '',
+    rpe_5sts:            r.sts5?.rpe || '',
+    commentaire_5sts:    r.sts5?.commentaire || '',
+    rpe_tandem:          r.tandem?.rpe || '',
+    commentaire_tandem:  r.tandem?.commentaire || '',
+    rpe_6mwt:            r.mwt6?.rpe || '',
+    commentaire_6mwt:    r.mwt6?.commentaire || '',
+    timestamp:           new Date().toISOString(),
   }
   try {
     await fetch(url, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })

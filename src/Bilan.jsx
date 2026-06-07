@@ -3,24 +3,37 @@ import { AGE_OPTS, NORMS, wrap } from './constants'
 import { calcScores, generateReport, submitLead, scoreColor } from './utils'
 import {
   TimerWidget, BilanRadar, ProgressBar, BtnPrimary, BtnSecondary,
-  NormBox, AlertBox, ProtoBox, TestHeader, NumInput
+  NormBox, AlertBox, ProtoBox, TestHeader, NumInput, RessentiBLoc
 } from './ui'
 
-const INIT_VALS = { tugT: '', slsO: '', sts5T: '', tandemT: '', tandemE: '0', mwt6D: '' }
+const INIT_VALS = {
+  tugT: '', slsDroit: '', slsGauche: '', sts5T: '',
+  tandemT: '', tandemE: '0', mwt6D: ''
+}
+
+const INIT_RESSENTI = {
+  tug:    { rpe: '', commentaire: '' },
+  sls:    { rpe: '', commentaire: '' },
+  sts5:   { rpe: '', commentaire: '' },
+  tandem: { rpe: '', commentaire: '' },
+  mwt6:   { rpe: '', commentaire: '' },
+}
 
 export default function Bilan({ mode }) {
   const [step, setStep]       = useState('intro')
   const [profile, setProfile] = useState({ prenom: '', email: '', age: '60-64', sex: 'H' })
   const [vals, setVals]       = useState(INIT_VALS)
+  const [ressenti, setRessenti] = useState(INIT_RESSENTI)
   const [scores, setScores]   = useState(null)
   const [rapport, setRapport] = useState('')
   const [loadingRapport, setLoadingRapport] = useState(false)
   const [lead, setLead]       = useState({ tel: '', consult: false, programme: false, newsletter: false })
   const [submitting, setSubmitting] = useState(false)
 
-  const go  = s  => { setStep(s); window.scrollTo(0, 0) }
-  const setP = (k, v) => setProfile(p => ({ ...p, [k]: v }))
-  const setV = (k, v) => setVals(p => ({ ...p, [k]: v }))
+  const go   = s       => { setStep(s); window.scrollTo(0, 0) }
+  const setP = (k, v)  => setProfile(p => ({ ...p, [k]: v }))
+  const setV = (k, v)  => setVals(p => ({ ...p, [k]: v }))
+  const setR = (t, k, v) => setRessenti(r => ({ ...r, [t]: { ...r[t], [k]: v } }))
 
   const goResultats = () => {
     setScores(calcScores(profile, vals))
@@ -37,7 +50,7 @@ export default function Bilan({ mode }) {
 
   const handleSubmitLead = async () => {
     setSubmitting(true)
-    await submitLead(profile, vals, scores, { ...lead, mode })
+    await submitLead(profile, vals, scores, { ...lead, mode }, ressenti)
     setSubmitting(false)
     go('merci')
   }
@@ -89,7 +102,7 @@ export default function Bilan({ mode }) {
         <div style={{ fontSize: 13, fontWeight: 600, color: '#9FE1CB', marginBottom: 12 }}>Les 5 tests du bilan</div>
         {[
           ['1', 'TUG — Timed Up and Go',           'Mobilité fonctionnelle · transferts'],
-          ['2', 'SLS — Équilibre unipodal',          'Équilibre statique · yeux ouverts'],
+          ['2', 'SLS — Équilibre unipodal',          'Équilibre statique · jambe droite et gauche'],
           ['3', '5×STS — Lever de chaise ×5',        'Puissance explosive'],
           ['4', 'Tandem Walk — Marche en tandem',     'Équilibre dynamique · coordination'],
           ['5', '6MWT — Marche 6 minutes',            'Endurance aérobie · surface ≥ 20 m'],
@@ -139,36 +152,73 @@ export default function Bilan({ mode }) {
           Groupe {profile.age} ans {profile.sex === 'H' ? 'hommes' : 'femmes'} : excellent ≤ {ref.good} s · acceptable ≤ {ref.ok} s
         </NormBox>
 
+        <RessentiBLoc testKey="tug" ressenti={ressenti} setR={setR} />
+
         <BtnPrimary label="Test suivant" onClick={() => go('t2')} disabled={!vals.tugT} />
       </div>
     )
   }
 
-  // ── TEST 2 — SLS ───────────────────────────────────────────────────────────
+  // ── TEST 2 — SLS BILATÉRAL ────────────────────────────────────────────────
   if (step === 't2') {
     const ref = (NORMS.sls[profile.age] || NORMS.sls['60-64'])[profile.sex]
+    const droitDone  = !!vals.slsDroit
+    const gaucheDone = !!vals.slsGauche
+    const ecart = droitDone && gaucheDone
+      ? Math.abs(parseFloat(vals.slsDroit) - parseFloat(vals.slsGauche)).toFixed(1)
+      : null
+
     return (
       <div style={wrap}>
-        <TestHeader num={2} of={5} title="SLS — Équilibre unipodal" domain="Équilibre statique · proprioception" pct={28} />
+        <TestHeader num={2} of={5} title="SLS — Équilibre unipodal" domain="Équilibre statique · jambe droite et gauche" pct={28} />
 
         <ProtoBox steps={[
           'Debout près d\'un mur (sans vous appuyer), levez un pied à environ 30 cm du sol.',
           'Bras le long du corps, fixez un point stable devant vous.',
           'Chronométrez jusqu\'à perte d\'équilibre ou 60 secondes maximum.',
-          '2 essais — retenez le meilleur.',
+          '2 essais par jambe — retenez le meilleur pour chaque côté.',
         ]} />
 
         <AlertBox>⚠️ Résultat &lt; {Math.round(ref.ok * 0.4)} s : risque de chute élevé — un suivi professionnel est recommandé (Springer et al., 2007).</AlertBox>
 
-        <TimerWidget countdown={60} onCapture={v => setV('slsO', String(v))} label="Démarrer (max 60 s)" />
-        <NumInput value={vals.slsO} onChange={v => setV('slsO', v)} placeholder="ex. 28" unit="secondes" label="Durée tenue — meilleur essai" />
+        {/* Jambe droite */}
+        <div style={{ background: '#F9F7F4', border: '1px solid #D3D1C7', borderRadius: 10, padding: '14px', marginBottom: 12 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Jambe droite</span>
+            {droitDone && <span style={{ fontSize: 13, color: '#1D9E75', fontWeight: 600 }}>✓ {vals.slsDroit} s</span>}
+          </div>
+          <TimerWidget countdown={60} onCapture={v => setV('slsDroit', String(v))} label="Démarrer — jambe droite (max 60 s)" />
+          <NumInput value={vals.slsDroit} onChange={v => setV('slsDroit', v)} placeholder="ex. 28" unit="secondes" label="Meilleur essai" />
+        </div>
+
+        {/* Jambe gauche — apparaît après que la droite est enregistrée */}
+        <div style={{ background: '#F9F7F4', border: `1px solid ${droitDone ? '#D3D1C7' : '#E8E6DF'}`, borderRadius: 10, padding: '14px', marginBottom: 12, opacity: droitDone ? 1 : 0.45, transition: 'opacity .3s' }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#1a1a1a', marginBottom: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Jambe gauche</span>
+            {gaucheDone && <span style={{ fontSize: 13, color: '#1D9E75', fontWeight: 600 }}>✓ {vals.slsGauche} s</span>}
+          </div>
+          {droitDone ? (
+            <>
+              <TimerWidget countdown={60} onCapture={v => setV('slsGauche', String(v))} label="Démarrer — jambe gauche (max 60 s)" />
+              <NumInput value={vals.slsGauche} onChange={v => setV('slsGauche', v)} placeholder="ex. 24" unit="secondes" label="Meilleur essai" />
+            </>
+          ) : (
+            <div style={{ fontSize: 13, color: '#B4B2A9', paddingBottom: 4 }}>Complétez d'abord la jambe droite.</div>
+          )}
+        </div>
+
+        {ecart && parseFloat(ecart) >= 5 && (
+          <AlertBox>⚠️ Asymétrie de {ecart} s entre les 2 côtés. Le côté le plus faible ({parseFloat(vals.slsDroit) < parseFloat(vals.slsGauche) ? 'droite' : 'gauche'}) sera utilisé pour le score.</AlertBox>
+        )}
 
         <NormBox>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#0F6E56', marginBottom: 4 }}>RÉFÉRENCE — Springer et al., 2007</div>
           Groupe {profile.age} ans {profile.sex === 'H' ? 'hommes' : 'femmes'} : excellent ≥ {ref.good} s · acceptable ≥ {ref.ok} s
         </NormBox>
 
-        <BtnPrimary label="Test suivant" onClick={() => go('t3')} disabled={!vals.slsO} />
+        <RessentiBLoc testKey="sls" ressenti={ressenti} setR={setR} />
+
+        <BtnPrimary label="Test suivant" onClick={() => go('t3')} disabled={!vals.slsDroit || !vals.slsGauche} />
       </div>
     )
   }
@@ -198,6 +248,8 @@ export default function Bilan({ mode }) {
           <div style={{ fontSize: 11, fontWeight: 700, color: '#0F6E56', marginBottom: 4 }}>SEUIL D'ALERTE — Bohannon 2006 · SHARE 2025</div>
           Groupe {profile.age} ans {profile.sex === 'H' ? 'hommes' : 'femmes'} : excellent ≤ {ref.good} s · acceptable ≤ {ref.ok} s
         </NormBox>
+
+        <RessentiBLoc testKey="sts5" ressenti={ressenti} setR={setR} />
 
         <BtnPrimary label="Test suivant" onClick={() => go('t4')} disabled={!vals.sts5T} />
       </div>
@@ -234,6 +286,8 @@ export default function Bilan({ mode }) {
         Bon résultat : ≤ 28 s avec ≤ 1 erreur · Au-delà : risque de chute à surveiller
       </NormBox>
 
+      <RessentiBLoc testKey="tandem" ressenti={ressenti} setR={setR} />
+
       <BtnPrimary label="Test suivant" onClick={() => go('t5')} disabled={!vals.tandemT} />
     </div>
   )
@@ -264,6 +318,8 @@ export default function Bilan({ mode }) {
           Groupe {profile.age} ans {profile.sex === 'H' ? 'hommes' : 'femmes'} : excellent ≥ {ref.good} m · acceptable ≥ {ref.ok} m
         </NormBox>
 
+        <RessentiBLoc testKey="mwt6" ressenti={ressenti} setR={setR} />
+
         <BtnPrimary label="Voir mes résultats" onClick={goResultats} disabled={!vals.mwt6D} />
       </div>
     )
@@ -272,7 +328,7 @@ export default function Bilan({ mode }) {
   // ── RÉSULTATS ─────────────────────────────────────────────────────────────
   if (step === 'resultats' && scores) {
     const vals5 = [scores.tugScore, scores.slsScore, scores.sts5Score, scores.tanScore, scores.mwt6Score]
-    const avg   = Math.round(vals5.reduce((a, b) => a + b, 0) / 5)
+    const avg     = Math.round(vals5.reduce((a, b) => a + b, 0) / 5)
     const color   = scoreColor(avg)
     const bgColor = avg >= 70 ? '#E8F5F1' : avg >= 50 ? '#FAEEDA' : '#FAECE7'
     const mention = avg >= 80 ? 'Excellent' : avg >= 70 ? 'Bien au-dessus de la norme' : avg >= 55 ? 'Dans la norme' : avg >= 40 ? 'Sous la norme' : 'Bien sous la norme'
@@ -284,6 +340,10 @@ export default function Bilan({ mode }) {
       ['Équilibre dynamique (Tandem)',     scores.tanScore],
       ['Endurance aérobie (6MWT)',         scores.mwt6Score],
     ]
+
+    const slsDroit  = parseFloat(vals.slsDroit)  || 0
+    const slsGauche = parseFloat(vals.slsGauche) || 0
+    const coteLimit = slsDroit < slsGauche ? 'droite' : 'gauche'
 
     return (
       <div style={wrap}>
@@ -313,6 +373,14 @@ export default function Bilan({ mode }) {
               <div style={{ fontSize: 12, color: '#888780', width: 38, textAlign: 'right' }}>{pct}/100</div>
             </div>
           ))}
+          {slsDroit > 0 && slsGauche > 0 && (
+            <div style={{ fontSize: 12, color: '#888780', marginTop: 6, paddingTop: 10, borderTop: '1px solid #F1EFE8' }}>
+              SLS — Droite : {slsDroit} s · Gauche : {slsGauche} s
+              {Math.abs(slsDroit - slsGauche) >= 5 && (
+                <span style={{ color: '#BA7517', fontWeight: 600 }}> · Côté limitant : {coteLimit}</span>
+              )}
+            </div>
+          )}
         </div>
 
         <div style={{ marginBottom: 20 }}>
@@ -384,7 +452,7 @@ export default function Bilan({ mode }) {
     </div>
   )
 
-  // ── LEAD — AUTONOME (simplifié) ────────────────────────────────────────────
+  // ── LEAD — AUTONOME ────────────────────────────────────────────────────────
   if (step === 'lead' && mode === 'autonome') return (
     <div style={wrap}>
       <ProgressBar pct={97} />
@@ -396,7 +464,6 @@ export default function Bilan({ mode }) {
         <div style={{ fontSize: 15, fontWeight: 600, color: '#1a1a1a', marginBottom: 12, padding: '8px 12px', background: '#F9F7F4', borderRadius: 8 }}>{profile.prenom}</div>
         <div style={{ fontSize: 13, color: '#5F5E5A', marginBottom: 4 }}>Courriel</div>
         <div style={{ fontSize: 15, fontWeight: 600, color: '#1a1a1a', marginBottom: 16, padding: '8px 12px', background: '#F9F7F4', borderRadius: 8 }}>{profile.email}</div>
-
         <label style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#5F5E5A', cursor: 'pointer' }}>
           <input type="checkbox" checked={lead.newsletter} onChange={e => setLead(l => ({ ...l, newsletter: e.target.checked }))} style={{ width: 18, height: 18, accentColor: '#1D9E75' }} />
           Recevoir les conseils Kinoa par courriel
@@ -408,7 +475,7 @@ export default function Bilan({ mode }) {
     </div>
   )
 
-  // ── LEAD — CLINIQUE (complet) ──────────────────────────────────────────────
+  // ── LEAD — CLINIQUE ────────────────────────────────────────────────────────
   if (step === 'lead' && mode === 'clinique') return (
     <div style={wrap}>
       <ProgressBar pct={98} />
@@ -423,12 +490,11 @@ export default function Bilan({ mode }) {
         <div style={{ fontSize: 13, color: '#5F5E5A', marginBottom: 6 }}>Téléphone (optionnel)</div>
         <input type="tel" value={lead.tel} onChange={e => setLead(l => ({ ...l, tel: e.target.value }))} placeholder="514-XXX-XXXX"
           style={{ width: '100%', padding: '10px 12px', border: '1px solid #D3D1C7', borderRadius: 8, fontSize: 15, boxSizing: 'border-box', background: '#FAFAFA', marginBottom: 16 }} />
-
         <div style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', marginBottom: 10 }}>Je souhaite :</div>
         {[
-          ['consult',     'Parler à un kinésiologue Kinoa'],
-          ['programme',   'En savoir plus sur le programme 12 semaines'],
-          ['newsletter',  'Recevoir les conseils Kinoa par courriel'],
+          ['consult',    'Parler à un kinésiologue Kinoa'],
+          ['programme',  'En savoir plus sur le programme 12 semaines'],
+          ['newsletter', 'Recevoir les conseils Kinoa par courriel'],
         ].map(([key, label]) => (
           <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#5F5E5A', marginBottom: 12, cursor: 'pointer' }}>
             <input type="checkbox" checked={lead[key]} onChange={e => setLead(l => ({ ...l, [key]: e.target.checked }))} style={{ width: 18, height: 18, accentColor: '#1D9E75' }} />
@@ -465,7 +531,7 @@ export default function Bilan({ mode }) {
       </div>
 
       <BtnPrimary label="Explorer les services Kinoa" onClick={() => window.open('https://kinoa.ca', '_blank')} />
-      <BtnSecondary label="Recommencer le bilan" onClick={() => { setStep('intro'); setVals(INIT_VALS); setScores(null); setRapport('') }} />
+      <BtnSecondary label="Recommencer le bilan" onClick={() => { setStep('intro'); setVals(INIT_VALS); setRessenti(INIT_RESSENTI); setScores(null); setRapport('') }} />
     </div>
   )
 

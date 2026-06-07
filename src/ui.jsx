@@ -188,3 +188,43 @@ export function NumInput({ value, onChange, placeholder, unit, label }) {
     </div>
   )
 }
+
+// ─── RESSENTI ───────────────────────────────────────────────────────────────
+export function RessentiBLoc({ testKey, ressenti, setR }) {
+  const { rpe, commentaire } = ressenti[testKey]
+  const rpeNum = parseInt(rpe) || 0
+
+  return (
+    <div style={{ background: '#fff', border: '1px solid #E8E6DF', borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.08em', color: '#888780', marginBottom: 12 }}>VOTRE RESSENTI <span style={{ fontWeight: 400, letterSpacing: 0 }}>(optionnel)</span></div>
+
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 13, color: '#5F5E5A', marginBottom: 2 }}>Comment avez-vous trouvé ce test ?</div>
+        <div style={{ fontSize: 11, color: '#B4B2A9', marginBottom: 8 }}>1 = très facile · 10 = effort maximal</div>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          {[1,2,3,4,5,6,7,8,9,10].map(n => {
+            const selected = rpeNum === n
+            const col = n <= 3 ? { bg: '#E8F5F1', border: '#1D9E75', text: '#085041' }
+                      : n <= 6 ? { bg: '#FAEEDA', border: '#BA7517', text: '#7A4A0A' }
+                      :          { bg: '#FAECE7', border: '#D85A30', text: '#712B13' }
+            return (
+              <button key={n} onClick={() => setR(testKey, 'rpe', rpeNum === n ? '' : String(n))}
+                style={{ width: 36, height: 36, borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  background: selected ? col.bg : '#F9F7F4',
+                  border: `${selected ? 1.5 : 1}px solid ${selected ? col.border : '#E8E6DF'}`,
+                  color: selected ? col.text : '#888780' }}>
+                {n}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <textarea value={commentaire} onChange={e => setR(testKey, 'commentaire', e.target.value)}
+        placeholder="Ex : douleur au genou droit, manque d'équilibre, essoufflement…"
+        rows={2}
+        style={{ width: '100%', padding: '8px 10px', border: '1px solid #D3D1C7', borderRadius: 8, fontSize: 13, color: '#1a1a1a', background: '#FAFAFA', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'system-ui, -apple-system, sans-serif' }}
+      />
+    </div>
+  )
+}
