@@ -164,7 +164,8 @@ export async function submitLead(profile, vals, scores, extra, ressenti = {}) {
     commentaire_6mwt:    r.mwt6?.commentaire || '',
     timestamp:           new Date().toISOString(),
   }
-  try {
-    await fetch(url, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-  } catch {}
+  await Promise.allSettled([
+    fetch(url, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }),
+    fetch('https://www.kinoa.ca/_api/bilan/lead', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prenom: payload.prenom, email: payload.email }) }),
+  ])
 }
